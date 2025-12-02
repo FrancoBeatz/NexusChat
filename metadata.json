@@ -1,0 +1,7 @@
+{
+  "name": "NexusChat",
+  "description": "A futuristic, data-themed real-time messaging application featuring an AI-powered assistant, simulated contacts, and a sleek glassmorphism UI.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
