@@ -11,7 +11,13 @@ import {
   Smile, 
   Check, 
   CheckCheck, 
-  Heart
+  Heart,
+  Plus,
+  User,
+  X,
+  Camera,
+  MicOff,
+  Settings
 } from 'lucide-react';
 
 export const ICONS = {
@@ -27,7 +33,13 @@ export const ICONS = {
   Smile,
   Check,
   CheckCheck,
-  Heart
+  Heart,
+  Plus,
+  User,
+  X,
+  Camera,
+  MicOff,
+  Settings
 };
 
 export const INITIAL_USER_ID = 'me';

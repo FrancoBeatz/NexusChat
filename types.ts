@@ -1,3 +1,9 @@
+export interface UserProfile {
+  name: string;
+  avatar: string;
+  bio: string;
+}
+
 export interface Contact {
   id: string;
   name: string;

@@ -7,7 +7,66 @@ interface MessageInputProps {
 
 const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage }) => {
   const [text, setText] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Initialize Speech Recognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setText(prev => prev + (prev ? ' ' : '') + finalTranscript);
+        }
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in your browser.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
 
   const handleSend = () => {
     if (text.trim()) {
@@ -54,15 +113,22 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage }) => {
         />
       </div>
 
-      {text.trim() ? (
+      {text.trim() || isListening ? (
         <button 
-          onClick={handleSend}
-          className="p-3 bg-kindred-accent text-kindred-900 rounded-full hover:bg-kindred-accentHover transition-transform transform active:scale-95 shadow-lg shadow-kindred-accent/20"
+          onClick={text.trim() ? handleSend : toggleListening}
+          className={`p-3 rounded-full transition-all transform active:scale-95 shadow-lg ${
+            isListening 
+              ? 'bg-red-500 text-white animate-pulse shadow-red-500/20' 
+              : 'bg-kindred-accent text-kindred-900 shadow-kindred-accent/20 hover:bg-kindred-accentHover'
+          }`}
         >
-          <ICONS.Send className="w-5 h-5" />
+          {text.trim() ? <ICONS.Send className="w-5 h-5" /> : <ICONS.MicOff className="w-5 h-5" />}
         </button>
       ) : (
-        <button className="p-3 text-stone-400 hover:text-kindred-accent transition-colors rounded-full hover:bg-kindred-700">
+        <button 
+          onClick={toggleListening}
+          className="p-3 text-stone-400 hover:text-kindred-accent transition-colors rounded-full hover:bg-kindred-700"
+        >
            <ICONS.Mic className="w-6 h-6" />
         </button>
       )}

@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Contact, Message } from '../types';
 import { ICONS } from '../constants';
 import MessageInput from './MessageInput';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface ChatWindowProps {
   contact: Contact;
@@ -33,10 +34,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const renderMessageStatus = (status: Message['status']) => {
-    if (status === 'sent') return <ICONS.Check className="w-3 h-3 text-stone-400" />;
-    if (status === 'delivered') return <ICONS.CheckCheck className="w-3 h-3 text-stone-400" />;
-    if (status === 'read') return <ICONS.CheckCheck className="w-3 h-3 text-kindred-accent" />;
-    return null;
+    return (
+      <div className="flex items-center">
+        <AnimatePresence mode="wait">
+          {status === 'sent' && (
+            <motion.div
+              key="sent"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+            >
+              <ICONS.Check className="w-3.5 h-3.5 text-stone-400" />
+            </motion.div>
+          )}
+          {status === 'delivered' && (
+            <motion.div
+              key="delivered"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+            >
+              <ICONS.CheckCheck className="w-3.5 h-3.5 text-stone-400" />
+            </motion.div>
+          )}
+          {status === 'read' && (
+            <motion.div
+              key="read"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+            >
+              <ICONS.CheckCheck className="w-3.5 h-3.5 text-kindred-accent drop-shadow-[0_0_2px_rgba(244,63,94,0.5)]" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
   };
 
   // Group messages by date could be added here, but keeping it simple for now

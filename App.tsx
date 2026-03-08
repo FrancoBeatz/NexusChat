@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
+import ProfileEdit from './components/ProfileEdit';
 import { contacts as initialContacts, initialSessions } from './services/mockDb';
-import { Contact, ChatSession, Message, AppView } from './types';
+import { Contact, ChatSession, Message, AppView, UserProfile } from './types';
 import { sendMessageToGemini } from './services/geminiService';
 import { INITIAL_USER_ID } from './constants';
+import { AnimatePresence } from 'motion/react';
 
 const App: React.FC = () => {
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
@@ -12,6 +14,11 @@ const App: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>(initialContacts);
   const [view, setView] = useState<AppView>(AppView.CHAT_LIST);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: 'Me',
+    avatar: 'https://picsum.photos/id/338/200/200',
+    bio: 'A safe space for my heart.'
+  });
 
   // Responsive check
   useEffect(() => {
@@ -42,6 +49,29 @@ const App: React.FC = () => {
   const handleBackToSidebar = () => {
     setActiveContactId(null);
     setView(AppView.CHAT_LIST);
+  };
+
+  const handleProfileSave = (newProfile: UserProfile) => {
+    setUserProfile(newProfile);
+    setView(AppView.CHAT_LIST);
+  };
+
+  const handleAddNewContact = (name: string, avatar?: string) => {
+    const newId = `u-${Date.now()}`;
+    const newContact: Contact = {
+      id: newId,
+      name,
+      avatar: avatar || `https://picsum.photos/seed/${newId}/200/200`,
+      status: 'offline',
+      bio: 'New friend!'
+    };
+    setContacts(prev => [newContact, ...prev]);
+    setSessions(prev => ({
+      ...prev,
+      [newId]: { contactId: newId, messages: [], unreadCount: 0 }
+    }));
+    setActiveContactId(newId);
+    if (isMobile) setView(AppView.CHAT_WINDOW);
   };
 
   const addMessage = useCallback((contactId: string, message: Message) => {
@@ -169,15 +199,27 @@ const App: React.FC = () => {
     <div className="flex h-screen overflow-hidden bg-kindred-900 text-stone-200 font-sans selection:bg-kindred-accent selection:text-kindred-900">
       {/* Sidebar - Visible on Desktop or Mobile List View */}
       <div className={`
-        ${isMobile ? (view === AppView.CHAT_LIST ? 'w-full' : 'hidden') : 'w-[350px] lg:w-[400px] flex-shrink-0'}
-        h-full
+        ${isMobile ? (view === AppView.CHAT_LIST || view === AppView.PROFILE ? 'w-full' : 'hidden') : 'w-[350px] lg:w-[400px] flex-shrink-0'}
+        h-full relative
       `}>
         <Sidebar 
           contacts={contacts}
           sessions={sessions}
           activeContactId={activeContactId}
           onSelectContact={handleSelectContact}
+          userProfile={userProfile}
+          onOpenProfile={() => setView(AppView.PROFILE)}
+          onAddNewContact={handleAddNewContact}
         />
+        <AnimatePresence>
+          {view === AppView.PROFILE && (
+            <ProfileEdit 
+              profile={userProfile}
+              onSave={handleProfileSave}
+              onBack={() => setView(AppView.CHAT_LIST)}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Main Chat Area */}

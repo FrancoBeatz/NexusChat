@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Contact, ChatSession } from '../types';
+import { Contact, ChatSession, UserProfile } from '../types';
 import { ICONS } from '../constants';
 
 interface SidebarProps {
@@ -7,6 +7,9 @@ interface SidebarProps {
   sessions: Record<string, ChatSession>;
   activeContactId: string | null;
   onSelectContact: (id: string) => void;
+  userProfile: UserProfile;
+  onOpenProfile: () => void;
+  onAddNewContact: (name: string, avatar?: string) => void;
   className?: string;
 }
 
@@ -15,13 +18,29 @@ const Sidebar: React.FC<SidebarProps> = ({
   sessions, 
   activeContactId, 
   onSelectContact,
+  userProfile,
+  onOpenProfile,
+  onAddNewContact,
   className = ''
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredContacts = contacts.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredContacts = contacts.filter(c => {
+    const nameMatch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const session = sessions[c.id];
+    const messageMatch = session?.messages.some(m => 
+      m.text.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    return nameMatch || messageMatch;
+  });
+
+  const handleNewChat = () => {
+    const name = prompt('Enter contact name:');
+    if (name) {
+      const avatar = prompt('Enter avatar URL (optional):');
+      onAddNewContact(name, avatar || undefined);
+    }
+  };
 
   const getLastMessage = (contactId: string) => {
     const session = sessions[contactId];
@@ -37,19 +56,30 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className={`flex flex-col h-full border-r border-kindred-700 bg-kindred-900 ${className}`}>
       {/* Header */}
       <div className="p-4 bg-kindred-800 border-b border-kindred-700 flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-kindred-accent to-pink-500 p-0.5">
+        <div className="flex items-center gap-3 cursor-pointer group" onClick={onOpenProfile}>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-kindred-accent to-pink-500 p-0.5 group-hover:scale-105 transition-transform">
              <img 
-               src="https://picsum.photos/id/338/200/200" 
-               alt="My Profile" 
+               src={userProfile.avatar} 
+               alt={userProfile.name} 
                className="w-full h-full rounded-full object-cover border-2 border-kindred-900"
              />
           </div>
-          <span className="font-semibold text-white tracking-wide">Friends</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-white tracking-wide leading-none">{userProfile.name}</span>
+            <span className="text-[10px] text-stone-500 uppercase tracking-tighter mt-1">My Profile</span>
+          </div>
         </div>
-        <div className="flex gap-4 text-kindred-accent">
-           <ICONS.MessageSquare className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
-           <ICONS.MoreVertical className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
+        <div className="flex gap-3 text-kindred-accent">
+           <button 
+             onClick={handleNewChat}
+             className="p-2 hover:bg-kindred-700 rounded-full transition-colors"
+             title="New Chat"
+           >
+             <ICONS.Plus className="w-5 h-5" />
+           </button>
+           <button className="p-2 hover:bg-kindred-700 rounded-full transition-colors">
+             <ICONS.MoreVertical className="w-5 h-5" />
+           </button>
         </div>
       </div>
 
