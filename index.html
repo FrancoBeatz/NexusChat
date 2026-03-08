@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NexusChat</title>
+    <title>Kindred</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
@@ -16,14 +16,14 @@
               mono: ['JetBrains Mono', 'monospace'],
             },
             colors: {
-              nexus: {
-                900: '#0f172a',
-                800: '#1e293b',
-                700: '#334155',
-                accent: '#06b6d4', // Cyan 500
-                accentHover: '#0891b2',
-                msgIn: '#1e293b',
-                msgOut: '#0e7490',
+              kindred: {
+                900: '#0a0a0a',
+                800: '#171717',
+                700: '#262626',
+                accent: '#f43f5e', // Rose 500
+                accentHover: '#e11d48',
+                msgIn: '#262626',
+                msgOut: '#e11d48',
               }
             }
           }
@@ -39,17 +39,17 @@
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #334155;
+        background: #404040;
         border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #475569;
+        background: #525252;
       }
       .glass-panel {
-        background: rgba(30, 41, 59, 0.7);
+        background: rgba(23, 23, 23, 0.7);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.03);
       }
       .bg-grid-pattern {
         background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
@@ -68,8 +68,10 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-nexus-900 text-slate-200 overflow-hidden">
+  <body class="bg-kindred-900 text-stone-200 overflow-hidden">
     <div id="root" class="h-screen w-screen flex flex-col"></div>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

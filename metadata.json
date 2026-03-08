@@ -1,6 +1,6 @@
 {
-  "name": "NexusChat",
-  "description": "A futuristic, data-themed real-time messaging application featuring an AI-powered assistant, simulated contacts, and a sleek glassmorphism UI.",
+  "name": "Kindred",
+  "description": "A warm and friendly space for deep conversations and relationship advice, featuring Kindred Spirit, your empathetic AI companion.",
   "requestFramePermissions": [
     "microphone"
   ]

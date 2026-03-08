@@ -166,7 +166,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-nexus-900 text-slate-200 font-sans selection:bg-nexus-accent selection:text-nexus-900">
+    <div className="flex h-screen overflow-hidden bg-kindred-900 text-stone-200 font-sans selection:bg-kindred-accent selection:text-kindred-900">
       {/* Sidebar - Visible on Desktop or Mobile List View */}
       <div className={`
         ${isMobile ? (view === AppView.CHAT_LIST ? 'w-full' : 'hidden') : 'w-[350px] lg:w-[400px] flex-shrink-0'}
@@ -195,19 +195,24 @@ const App: React.FC = () => {
           />
         ) : (
           /* Empty State for Desktop */
-          <div className="hidden md:flex flex-col items-center justify-center h-full bg-nexus-900 bg-grid-pattern border-l border-nexus-700/50">
-             <div className="w-24 h-24 bg-nexus-800 rounded-full flex items-center justify-center mb-6 shadow-2xl border border-nexus-700">
+          <div className="hidden md:flex flex-col items-center justify-center h-full bg-kindred-900 bg-grid-pattern border-l border-kindred-700/50">
+             <div className="w-24 h-24 bg-kindred-800 rounded-full flex items-center justify-center mb-6 shadow-2xl border border-kindred-700 relative">
                <div className="animate-pulse">
-                  <div className="w-12 h-12 border-4 border-nexus-accent rounded-full border-t-transparent animate-spin"></div>
+                  <div className="w-12 h-12 bg-kindred-accent rounded-full opacity-20"></div>
+               </div>
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-10 h-10 text-kindred-accent">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                  </div>
                </div>
              </div>
-             <h1 className="text-3xl font-bold text-slate-200 mb-2 tracking-tight">Welcome to NexusChat</h1>
-             <p className="text-slate-400 max-w-md text-center leading-relaxed">
-               Select a contact to start messaging. <br/>
-               Connect with <span className="text-nexus-accent font-semibold">Nexus AI</span> for intelligent assistance.
+             <h1 className="text-3xl font-bold text-stone-100 mb-2 tracking-tight">Welcome to Kindred</h1>
+             <p className="text-stone-400 max-w-md text-center leading-relaxed">
+               Pick a friend to start a warm talk. <br/>
+               Chat with <span className="text-kindred-accent font-semibold">Kindred Spirit</span> for advice and support.
              </p>
-             <div className="mt-8 text-xs text-slate-600 font-mono">
-                End-to-End Encryption (Simulated) • v1.0.4
+             <div className="mt-8 text-xs text-stone-600 font-mono">
+                A safe space for your heart • v1.1.0
              </div>
           </div>
         )}

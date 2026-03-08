@@ -2,49 +2,49 @@ import { Contact, ChatSession } from '../types';
 
 export const contacts: Contact[] = [
   {
-    id: 'ai-nexus',
-    name: 'Nexus AI',
-    avatar: 'https://picsum.photos/id/1/200/200',
+    id: 'ai-kindred',
+    name: 'Kindred Spirit',
+    avatar: 'https://picsum.photos/id/1027/200/200',
     status: 'online',
     isAi: true,
-    bio: 'Advanced Data Assistant v2.5',
-    phoneNumber: '+1 (555) 000-AI01'
+    bio: 'Your empathetic AI companion for life and love.',
+    phoneNumber: 'Kindred'
   },
   {
-    id: 'u-alice',
-    name: 'Alice Chen',
-    avatar: 'https://picsum.photos/id/64/200/200',
+    id: 'u-maya',
+    name: 'Maya Sharma',
+    avatar: 'https://picsum.photos/id/1011/200/200',
     status: 'online',
-    bio: 'Frontend Engineer @ TechCorp',
-    phoneNumber: '+1 (555) 123-4567'
+    bio: 'Life is better with friends 🌸',
+    phoneNumber: '+1 (555) 111-2222'
   },
   {
-    id: 'u-bob',
-    name: 'Bob Smith',
-    avatar: 'https://picsum.photos/id/91/200/200',
+    id: 'u-leo',
+    name: 'Leo Brooks',
+    avatar: 'https://picsum.photos/id/1005/200/200',
     status: 'offline',
-    lastSeen: 'Today at 10:30 AM',
-    bio: 'Hiking enthusiast 🏔️',
-    phoneNumber: '+1 (555) 987-6543'
+    lastSeen: 'Today at 9:15 AM',
+    bio: 'Always learning, always growing.',
+    phoneNumber: '+1 (555) 333-4444'
   },
   {
-    id: 'u-charlie',
-    name: 'Charlie Davis',
-    avatar: 'https://picsum.photos/id/177/200/200',
+    id: 'u-sarah',
+    name: 'Sarah Jenkins',
+    avatar: 'https://picsum.photos/id/1025/200/200',
     status: 'online',
-    bio: 'Available for freelance',
-    phoneNumber: '+1 (555) 246-8135'
+    bio: 'Coffee, books, and deep talks.',
+    phoneNumber: '+1 (555) 555-6666'
   }
 ];
 
 export const initialSessions: Record<string, ChatSession> = {
-  'ai-nexus': {
-    contactId: 'ai-nexus',
+  'ai-kindred': {
+    contactId: 'ai-kindred',
     messages: [
       {
         id: 'm-1',
-        senderId: 'ai-nexus',
-        text: 'Hello! I am Nexus. How can I assist you with your data today?',
+        senderId: 'ai-kindred',
+        text: "Hello there. I'm Kindred Spirit. I'm here to listen and help you with your relationships or anything on your mind. How are you feeling today?",
         timestamp: new Date(Date.now() - 1000 * 60 * 60),
         status: 'read',
         type: 'text'
@@ -52,40 +52,18 @@ export const initialSessions: Record<string, ChatSession> = {
     ],
     unreadCount: 0
   },
-  'u-alice': {
-    contactId: 'u-alice',
+  'u-maya': {
+    contactId: 'u-maya',
     messages: [
       {
         id: 'm-2',
-        senderId: 'u-alice',
-        text: 'Hey! Did you see the new design specs?',
+        senderId: 'u-maya',
+        text: 'Hey! I was thinking about what you said earlier. Relationships can be tough, but you handled it so well.',
         timestamp: new Date(Date.now() - 1000 * 60 * 30),
         status: 'read',
         type: 'text'
       }
     ],
     unreadCount: 1
-  },
-  'u-bob': {
-    contactId: 'u-bob',
-    messages: [
-      {
-        id: 'm-3',
-        senderId: 'me',
-        text: 'Are we still on for lunch?',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-        status: 'read',
-        type: 'text'
-      },
-      {
-        id: 'm-4',
-        senderId: 'u-bob',
-        text: 'Yes! 12:30 at the usual place.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 23),
-        status: 'read',
-        type: 'text'
-      }
-    ],
-    unreadCount: 0
   }
 };

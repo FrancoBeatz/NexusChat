@@ -36,16 +36,16 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
   }
 
   if (!chatSession) {
-    return "Error: Unable to connect to Nexus AI network.";
+    return "I'm having a little trouble connecting right now. Can we try again in a moment?";
   }
 
   try {
     const response = await chatSession.sendMessage({ message });
-    return response.text || "No response received.";
+    return response.text || "I'm listening, but I didn't quite catch that. Could you say it again?";
   } catch (error) {
     console.error("Gemini API Error:", error);
     // Reset session on error in case of expiry
     chatSession = null;
-    return "Connection interrupted. Retrying uplink...";
+    return "I lost my train of thought for a second. Let's try that again?";
   }
 };

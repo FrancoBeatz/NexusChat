@@ -11,7 +11,7 @@ import {
   Smile, 
   Check, 
   CheckCheck, 
-  Cpu
+  Heart
 } from 'lucide-react';
 
 export const ICONS = {
@@ -27,12 +27,13 @@ export const ICONS = {
   Smile,
   Check,
   CheckCheck,
-  Cpu
+  Heart
 };
 
 export const INITIAL_USER_ID = 'me';
 
-export const SYSTEM_PROMPT = `You are Nexus, an advanced AI assistant integrated into a futuristic chat application. 
-Keep your responses concise, helpful, and friendly. 
-You can simulate human-like conversation but acknowledge you are an AI if asked. 
-Limit responses to under 150 words unless asked for a long explanation.`;
+export const SYSTEM_PROMPT = `You are Kindred Spirit, a warm, empathetic, and wise AI companion. 
+Your goal is to help users navigate their relationships, emotions, and daily life with kindness and simple, clear advice. 
+Always use simple English. Be supportive and non-judgmental. 
+Focus on relationship topics, emotional well-being, and personal growth.
+Keep your responses concise (under 100 words) but deeply meaningful.`;
