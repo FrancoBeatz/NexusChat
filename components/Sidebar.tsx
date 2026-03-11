@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Contact, ChatSession, UserProfile } from '../types';
+import { Contact, ChatSession, UserProfile, RelationshipTopic } from '../types';
 import { ICONS } from '../constants';
 
 interface SidebarProps {
@@ -24,14 +24,20 @@ const Sidebar: React.FC<SidebarProps> = ({
   className = ''
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTopicFilter, setActiveTopicFilter] = useState<RelationshipTopic | 'All'>('All');
+
+  const topics: (RelationshipTopic | 'All')[] = ['All', 'Dating', 'Friendship', 'Family', 'Self-care', 'General'];
 
   const filteredContacts = contacts.filter(c => {
-    const nameMatch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
     const session = sessions[c.id];
+    const nameMatch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
     const messageMatch = session?.messages.some(m => 
       m.text.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    return nameMatch || messageMatch;
+    
+    const topicMatch = activeTopicFilter === 'All' || session?.topic === activeTopicFilter;
+    
+    return (nameMatch || messageMatch) && topicMatch;
   });
 
   const handleNewChat = () => {
@@ -83,8 +89,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Search */}
-      <div className="p-3">
+      {/* Search & Topic Filter */}
+      <div className="p-3 space-y-3">
         <div className="relative">
           <ICONS.Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-stone-400" />
           <input 
@@ -94,6 +100,18 @@ const Sidebar: React.FC<SidebarProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        
+        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {topics.map(t => (
+            <button
+              key={t}
+              onClick={() => setActiveTopicFilter(t)}
+              className={`flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${activeTopicFilter === t ? 'bg-kindred-accent text-white' : 'bg-kindred-800 text-stone-500 hover:text-stone-300'}`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -128,9 +146,16 @@ const Sidebar: React.FC<SidebarProps> = ({
               
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-0.5">
-                  <h3 className={`font-medium truncate ${isActive ? 'text-kindred-accent' : 'text-stone-200'}`}>
-                    {contact.name}
-                  </h3>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className={`font-medium truncate ${isActive ? 'text-kindred-accent' : 'text-stone-200'}`}>
+                      {contact.name}
+                    </h3>
+                    {session?.topic && session.topic !== 'General' && (
+                      <span className="text-[8px] bg-kindred-700 text-stone-400 px-1 py-0.5 rounded uppercase font-bold flex-shrink-0">
+                        {session.topic}
+                      </span>
+                    )}
+                  </div>
                   {lastMsg && (
                     <span className="text-xs text-stone-500 font-mono">
                       {formatTime(lastMsg.timestamp)}

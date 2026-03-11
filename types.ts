@@ -1,3 +1,5 @@
+export type RelationshipTopic = 'Dating' | 'Friendship' | 'Family' | 'Self-care' | 'General';
+
 export interface UserProfile {
   name: string;
   avatar: string;
@@ -21,7 +23,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   status: 'sent' | 'delivered' | 'read';
-  type: 'text' | 'image' | 'audio';
+  type: 'text' | 'image' | 'audio' | 'system';
 }
 
 export interface ChatSession {
@@ -29,10 +31,14 @@ export interface ChatSession {
   messages: Message[];
   unreadCount: number;
   draft?: string;
+  topic?: RelationshipTopic;
+  isGuided?: boolean;
+  currentStep?: number;
 }
 
 export enum AppView {
   CHAT_LIST = 'CHAT_LIST',
   CHAT_WINDOW = 'CHAT_WINDOW',
-  PROFILE = 'PROFILE'
+  PROFILE = 'PROFILE',
+  ONBOARDING = 'ONBOARDING'
 }

@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { Contact, Message } from '../types';
-import { ICONS } from '../constants';
+import React, { useRef, useEffect, useState } from 'react';
+import { Contact, Message, RelationshipTopic } from '../types';
+import { ICONS, CONVERSATION_STARTERS } from '../constants';
 import MessageInput from './MessageInput';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -10,6 +10,10 @@ interface ChatWindowProps {
   onSendMessage: (text: string) => void;
   onBack: () => void;
   isTyping?: boolean;
+  activeTopic: RelationshipTopic;
+  onTopicChange: (topic: RelationshipTopic) => void;
+  isGuided: boolean;
+  onToggleGuided: () => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ 
@@ -17,9 +21,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   messages, 
   onSendMessage, 
   onBack,
-  isTyping
+  isTyping,
+  activeTopic,
+  onTopicChange,
+  isGuided,
+  onToggleGuided
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showTopics, setShowTopics] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,8 +81,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     );
   };
 
-  // Group messages by date could be added here, but keeping it simple for now
-  
+  const topics: RelationshipTopic[] = ['General', 'Dating', 'Friendship', 'Family', 'Self-care'];
+
   return (
     <div className="flex flex-col h-full bg-kindred-900 relative">
       <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none"></div>
@@ -103,18 +112,59 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {contact.name}
               {contact.isAi && <span className="text-[10px] bg-kindred-700 text-kindred-accent px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Soul</span>}
             </h2>
-            <span className="text-xs text-kindred-accent truncate">
-              {isTyping ? 'typing...' : contact.status === 'online' ? 'online' : `last seen ${contact.lastSeen || 'recently'}`}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-kindred-accent truncate">
+                {isTyping ? 'typing...' : contact.status === 'online' ? 'online' : `last seen ${contact.lastSeen || 'recently'}`}
+              </span>
+              {contact.isAi && (
+                <button 
+                  onClick={() => setShowTopics(!showTopics)}
+                  className="text-[10px] text-stone-400 hover:text-white flex items-center gap-1 bg-stone-800 px-1.5 py-0.5 rounded"
+                >
+                  {activeTopic} <ICONS.Settings className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-5 text-kindred-accent">
-          <ICONS.Video className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
-          <ICONS.Phone className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
+        <div className="flex gap-4 text-kindred-accent items-center">
+          {contact.isAi && (
+            <button 
+              onClick={onToggleGuided}
+              className={`text-xs px-3 py-1.5 rounded-full font-bold transition-all ${isGuided ? 'bg-kindred-accent text-white shadow-lg shadow-kindred-accent/30' : 'bg-stone-800 text-stone-400 hover:text-white'}`}
+            >
+              {isGuided ? 'Guided Mode ON' : 'Start Guided Session'}
+            </button>
+          )}
           <ICONS.MoreVertical className="w-5 h-5 cursor-pointer hover:text-white transition-colors" />
         </div>
       </div>
+
+      {/* Topic Selection Overlay */}
+      <AnimatePresence>
+        {showTopics && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-16 left-4 right-4 bg-kindred-800 border border-kindred-700 rounded-2xl p-4 z-20 shadow-2xl"
+          >
+            <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Select Focus Topic</p>
+            <div className="flex flex-wrap gap-2">
+              {topics.map(t => (
+                <button
+                  key={t}
+                  onClick={() => { onTopicChange(t); setShowTopics(false); }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTopic === t ? 'bg-kindred-accent text-white' : 'bg-kindred-900 text-stone-400 hover:text-white'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar z-0 relative">
@@ -126,6 +176,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
         {messages.map((msg) => {
           const isMe = msg.senderId === 'me';
+          const isSystem = msg.type === 'system';
+
+          if (isSystem) {
+            return (
+              <div key={msg.id} className="flex justify-center my-4">
+                <div className="bg-kindred-800/50 text-stone-400 text-[11px] px-4 py-2 rounded-xl border border-kindred-700/30 italic">
+                  {msg.text}
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div 
               key={msg.id} 
@@ -170,6 +232,21 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Conversation Starters */}
+      {contact.isAi && messages.length < 10 && (
+        <div className="px-4 py-2 bg-kindred-900/50 border-t border-kindred-800 overflow-x-auto custom-scrollbar flex gap-2 no-scrollbar">
+          {CONVERSATION_STARTERS[activeTopic].map((starter, i) => (
+            <button
+              key={i}
+              onClick={() => onSendMessage(starter)}
+              className="flex-shrink-0 bg-kindred-800 hover:bg-kindred-700 text-stone-300 text-xs px-4 py-2 rounded-full border border-kindred-700 transition-colors whitespace-nowrap"
+            >
+              {starter}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="z-10 relative">

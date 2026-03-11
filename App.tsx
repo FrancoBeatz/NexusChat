@@ -2,23 +2,37 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
 import ProfileEdit from './components/ProfileEdit';
+import Onboarding from './components/Onboarding';
 import { contacts as initialContacts, initialSessions } from './services/mockDb';
-import { Contact, ChatSession, Message, AppView, UserProfile } from './types';
+import { Contact, ChatSession, Message, AppView, UserProfile, RelationshipTopic } from './types';
 import { sendMessageToGemini } from './services/geminiService';
-import { INITIAL_USER_ID } from './constants';
+import { INITIAL_USER_ID, GUIDED_EXERCISES } from './constants';
 import { AnimatePresence } from 'motion/react';
 
 const App: React.FC = () => {
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Record<string, ChatSession>>(initialSessions);
   const [contacts, setContacts] = useState<Contact[]>(initialContacts);
-  const [view, setView] = useState<AppView>(AppView.CHAT_LIST);
+  const [view, setView] = useState<AppView>(AppView.ONBOARDING);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: 'Me',
     avatar: 'https://picsum.photos/id/338/200/200',
     bio: 'A safe space for my heart.'
   });
+
+  // Check if onboarding was completed
+  useEffect(() => {
+    const completed = localStorage.getItem('kindred_onboarding_completed');
+    if (completed) {
+      setView(AppView.CHAT_LIST);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('kindred_onboarding_completed', 'true');
+    setView(AppView.CHAT_LIST);
+  };
 
   // Responsive check
   useEffect(() => {
@@ -36,13 +50,84 @@ const App: React.FC = () => {
       [id]: {
         ...prev[id],
         unreadCount: 0,
+        topic: prev[id]?.topic || 'General',
         // Create session if it doesn't exist (simulated DB upsert)
-        ...(prev[id] ? {} : { contactId: id, messages: [], unreadCount: 0 })
+        ...(prev[id] ? {} : { contactId: id, messages: [], unreadCount: 0, topic: 'General' })
       }
     }));
 
     if (isMobile) {
       setView(AppView.CHAT_WINDOW);
+    }
+  };
+
+  const handleTopicChange = (topic: RelationshipTopic) => {
+    if (!activeContactId) return;
+    setSessions(prev => ({
+      ...prev,
+      [activeContactId]: {
+        ...prev[activeContactId],
+        topic
+      }
+    }));
+
+    // Add a system message about topic change
+    const systemMsg: Message = {
+      id: `sys-${Date.now()}`,
+      senderId: 'system',
+      text: `Focus topic changed to: ${topic}`,
+      timestamp: new Date(),
+      status: 'read',
+      type: 'system'
+    };
+    addMessage(activeContactId, systemMsg);
+  };
+
+  const handleToggleGuided = () => {
+    if (!activeContactId) return;
+    const session = sessions[activeContactId];
+    const newIsGuided = !session?.isGuided;
+
+    setSessions(prev => ({
+      ...prev,
+      [activeContactId]: {
+        ...prev[activeContactId],
+        isGuided: newIsGuided,
+        currentStep: newIsGuided ? 1 : undefined
+      }
+    }));
+
+    if (newIsGuided) {
+      const firstExercise = GUIDED_EXERCISES[0];
+      const systemMsg: Message = {
+        id: `sys-${Date.now()}`,
+        senderId: 'system',
+        text: "Guided Session Started: 'Deep Connection Exercise'",
+        timestamp: new Date(),
+        status: 'read',
+        type: 'system'
+      };
+      addMessage(activeContactId, systemMsg);
+
+      const aiMsg: Message = {
+        id: `ai-${Date.now()}`,
+        senderId: activeContactId,
+        text: firstExercise.prompt,
+        timestamp: new Date(),
+        status: 'read',
+        type: 'text'
+      };
+      addMessage(activeContactId, aiMsg);
+    } else {
+      const systemMsg: Message = {
+        id: `sys-${Date.now()}`,
+        senderId: 'system',
+        text: "Guided Session Ended.",
+        timestamp: new Date(),
+        status: 'read',
+        type: 'system'
+      };
+      addMessage(activeContactId, systemMsg);
     }
   };
 
@@ -68,7 +153,7 @@ const App: React.FC = () => {
     setContacts(prev => [newContact, ...prev]);
     setSessions(prev => ({
       ...prev,
-      [newId]: { contactId: newId, messages: [], unreadCount: 0 }
+      [newId]: { contactId: newId, messages: [], unreadCount: 0, topic: 'General' }
     }));
     setActiveContactId(newId);
     if (isMobile) setView(AppView.CHAT_WINDOW);
@@ -76,7 +161,7 @@ const App: React.FC = () => {
 
   const addMessage = useCallback((contactId: string, message: Message) => {
     setSessions(prev => {
-      const currentSession = prev[contactId] || { contactId, messages: [], unreadCount: 0 };
+      const currentSession = prev[contactId] || { contactId, messages: [], unreadCount: 0, topic: 'General' };
       const isViewing = activeContactId === contactId;
       
       return {
@@ -116,6 +201,8 @@ const App: React.FC = () => {
     const contact = contacts.find(c => c.id === activeContactId);
     if (!contact) return;
 
+    const session = sessions[activeContactId];
+
     // Simulate "Sent" -> "Delivered" -> "Read" update
     setTimeout(() => {
       setSessions(prev => ({
@@ -143,11 +230,39 @@ const App: React.FC = () => {
 
     // Handle Reply
     if (contact.isAi) {
-      // AI Typing simulation
       setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'typing' } : c));
       
       try {
-        const aiResponseText = await sendMessageToGemini(text);
+        let aiResponseText = "";
+        
+        if (session?.isGuided && session.currentStep !== undefined) {
+          const nextStepIdx = session.currentStep; // currentStep is 1-based
+          if (nextStepIdx < GUIDED_EXERCISES.length) {
+            const nextExercise = GUIDED_EXERCISES[nextStepIdx];
+            aiResponseText = nextExercise.prompt;
+            setSessions(prev => ({
+              ...prev,
+              [activeContactId]: {
+                ...prev[activeContactId],
+                currentStep: nextStepIdx + 1
+              }
+            }));
+          } else {
+            aiResponseText = "You've completed this guided session! I hope it brought you some clarity. Would you like to talk about anything else?";
+            setSessions(prev => ({
+              ...prev,
+              [activeContactId]: {
+                ...prev[activeContactId],
+                isGuided: false,
+                currentStep: undefined
+              }
+            }));
+          }
+        } else {
+          // Normal AI response with topic context
+          const prompt = `Topic: ${session?.topic || 'General'}. User says: ${text}`;
+          aiResponseText = await sendMessageToGemini(prompt);
+        }
         
         setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'online' } : c));
 
@@ -189,14 +304,14 @@ const App: React.FC = () => {
   const activeContact = contacts.find(c => c.id === activeContactId);
   const activeSession = activeContactId ? sessions[activeContactId] : undefined;
 
-  // Initial welcome message from AI if empty
-  useEffect(() => {
-    // Check if user has API key, if not maybe show a warning?
-    // For this demo we assume it works or fails gracefully in service.
-  }, []);
-
   return (
     <div className="flex h-screen overflow-hidden bg-kindred-900 text-stone-200 font-sans selection:bg-kindred-accent selection:text-kindred-900">
+      <AnimatePresence>
+        {view === AppView.ONBOARDING && (
+          <Onboarding onComplete={handleOnboardingComplete} />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar - Visible on Desktop or Mobile List View */}
       <div className={`
         ${isMobile ? (view === AppView.CHAT_LIST || view === AppView.PROFILE ? 'w-full' : 'hidden') : 'w-[350px] lg:w-[400px] flex-shrink-0'}
@@ -234,6 +349,10 @@ const App: React.FC = () => {
             onSendMessage={handleSendMessage}
             onBack={handleBackToSidebar}
             isTyping={activeContact.status === 'typing'}
+            activeTopic={activeSession.topic || 'General'}
+            onTopicChange={handleTopicChange}
+            isGuided={activeSession.isGuided || false}
+            onToggleGuided={handleToggleGuided}
           />
         ) : (
           /* Empty State for Desktop */
@@ -254,7 +373,7 @@ const App: React.FC = () => {
                Chat with <span className="text-kindred-accent font-semibold">Kindred Spirit</span> for advice and support.
              </p>
              <div className="mt-8 text-xs text-stone-600 font-mono">
-                A safe space for your heart • v1.1.0
+                A safe space for your heart • v1.2.0
              </div>
           </div>
         )}
