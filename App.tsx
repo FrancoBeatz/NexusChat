@@ -183,7 +183,39 @@ const App: React.FC = () => {
     });
   }, [activeContactId]);
 
-  const handleSendMessage = async (text: string) => {
+  const handleAddReaction = (messageId: string, emoji: string) => {
+    if (!activeContactId) return;
+    setSessions(prev => {
+      const session = prev[activeContactId];
+      if (!session) return prev;
+
+      const updatedMessages = session.messages.map(m => {
+        if (m.id === messageId) {
+          const reactions = { ...(m.reactions || {}) };
+          const users = [...(reactions[emoji] || [])];
+          
+          if (users.includes('me')) {
+            // Remove reaction
+            reactions[emoji] = users.filter(u => u !== 'me');
+            if (reactions[emoji].length === 0) delete reactions[emoji];
+          } else {
+            // Add reaction
+            reactions[emoji] = [...users, 'me'];
+          }
+          
+          return { ...m, reactions };
+        }
+        return m;
+      });
+
+      return {
+        ...prev,
+        [activeContactId]: { ...session, messages: updatedMessages }
+      };
+    });
+  };
+
+  const handleSendMessage = async (text: string, replyToId?: string) => {
     if (!activeContactId) return;
 
     const newMessage: Message = {
@@ -192,7 +224,8 @@ const App: React.FC = () => {
       text,
       timestamp: new Date(),
       status: 'sent',
-      type: 'text'
+      type: 'text',
+      replyToId
     };
 
     addMessage(activeContactId, newMessage);
@@ -353,6 +386,7 @@ const App: React.FC = () => {
             onTopicChange={handleTopicChange}
             isGuided={activeSession.isGuided || false}
             onToggleGuided={handleToggleGuided}
+            onAddReaction={handleAddReaction}
           />
         ) : (
           /* Empty State for Desktop */

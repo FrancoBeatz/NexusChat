@@ -17,7 +17,8 @@ import {
   X,
   Camera,
   MicOff,
-  Settings
+  Settings,
+  Reply
 } from 'lucide-react';
 
 export const ICONS = {
@@ -39,7 +40,8 @@ export const ICONS = {
   X,
   Camera,
   MicOff,
-  Settings
+  Settings,
+  Reply
 };
 
 export const INITIAL_USER_ID = 'me';
