@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-kindred-900: #0a0a0a;
+  --color-kindred-800: #171717;
+  --color-kindred-700: #262626;
+  --color-kindred-accent: #f43f5e;
+  --color-kindred-accent-hover: #e11d48;
+  --color-kindred-msg-in: #262626;
+  --color-kindred-msg-out: #e11d48;
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+.glass-panel {
+  background: rgba(23, 23, 23, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.bg-grid-pattern {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

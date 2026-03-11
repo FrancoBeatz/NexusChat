@@ -5,8 +5,8 @@ let aiInstance: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 const getAiInstance = () => {
-  if (!aiInstance && process.env.API_KEY) {
-    aiInstance = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  if (!aiInstance && process.env.GEMINI_API_KEY) {
+    aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return aiInstance;
 };
@@ -17,7 +17,7 @@ export const initializeChat = async () => {
 
   try {
     chatSession = ai.chats.create({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       config: {
         systemInstruction: SYSTEM_PROMPT,
         temperature: 0.7,
