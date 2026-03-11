@@ -5,12 +5,14 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface MessageInputProps {
   onSendMessage: (text: string, replyToId?: string) => void;
+  onTyping: (isTyping: boolean) => void;
   replyingTo: Message | null;
   onCancelReply: () => void;
 }
 
-const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, replyingTo, onCancelReply }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, onTyping, replyingTo, onCancelReply }) => {
   const [text, setText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showAudioConfirm, setShowAudioConfirm] = useState(false);
@@ -19,6 +21,15 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, replyingTo, 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const emojis = ['😊', '😂', '❤️', '👍', '🙏', '🔥', '✨', '🥺', '🙌', '😎', '🤔', '😢'];
+
+  const addEmoji = (emoji: string) => {
+    setText(prev => prev + emoji);
+    setShowEmojiPicker(false);
+    if (textareaRef.current) textareaRef.current.focus();
+  };
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -120,6 +131,12 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, replyingTo, 
     setText(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+
+    onTyping(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      onTyping(false);
+    }, 2000);
   };
 
   return (
@@ -208,9 +225,35 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, replyingTo, 
           )}
         </AnimatePresence>
 
-        <button className="p-2 text-stone-400 hover:text-kindred-accent transition-colors rounded-full hover:bg-kindred-700">
-          <ICONS.Smile className="w-6 h-6" />
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2 transition-colors rounded-full hover:bg-kindred-700 ${showEmojiPicker ? 'text-kindred-accent' : 'text-stone-400'}`}
+          >
+            <ICONS.Smile className="w-6 h-6" />
+          </button>
+          
+          <AnimatePresence>
+            {showEmojiPicker && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute bottom-full left-0 mb-2 p-2 bg-kindred-800 border border-kindred-700 rounded-xl shadow-2xl z-30 grid grid-cols-4 gap-1"
+              >
+                {emojis.map(emoji => (
+                  <button 
+                    key={emoji}
+                    onClick={() => addEmoji(emoji)}
+                    className="p-2 hover:bg-kindred-700 rounded-lg transition-colors text-xl"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <button className="p-2 text-stone-400 hover:text-kindred-accent transition-colors rounded-full hover:bg-kindred-700">
           <ICONS.Paperclip className="w-6 h-6" />
         </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
 import ProfileEdit from './components/ProfileEdit';
@@ -8,6 +8,7 @@ import { Contact, ChatSession, Message, AppView, UserProfile, RelationshipTopic 
 import { sendMessageToGemini } from './services/geminiService';
 import { INITIAL_USER_ID, GUIDED_EXERCISES } from './constants';
 import { AnimatePresence } from 'motion/react';
+import { io, Socket } from 'socket.io-client';
 
 const App: React.FC = () => {
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
@@ -20,6 +21,60 @@ const App: React.FC = () => {
     avatar: 'https://picsum.photos/id/338/200/200',
     bio: 'A safe space for my heart.'
   });
+
+  const socketRef = useRef<Socket | null>(null);
+
+  // Initialize Socket.io
+  useEffect(() => {
+    const socket = io();
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Connected to server');
+    });
+
+    socket.on('receive-message', (message: Message) => {
+      // Find which contact this message belongs to
+      addMessage(message.senderId, message);
+
+      // Browser Notification
+      if (Notification.permission === 'granted' && document.hidden) {
+        const contact = contacts.find(c => c.id === message.senderId);
+        new Notification(`New message from ${contact?.name || 'Kindred'}`, {
+          body: message.text,
+          icon: contact?.avatar
+        });
+      }
+    });
+
+    // Request notification permission
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    socket.on('user-typing', (data: { roomId: string, userId: string, isTyping: boolean }) => {
+      setContacts(prev => prev.map(c => 
+        c.id === data.userId ? { ...c, status: data.isTyping ? 'typing' : 'online' } : c
+      ));
+    });
+
+    socket.on('user-status', (data: { userId: string, status: 'online' | 'offline' }) => {
+      setContacts(prev => prev.map(c => 
+        c.id === data.userId ? { ...c, status: data.status } : c
+      ));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Join room when active contact changes
+  useEffect(() => {
+    if (activeContactId && socketRef.current) {
+      socketRef.current.emit('join-room', activeContactId);
+    }
+  }, [activeContactId]);
 
   // Check if onboarding was completed
   useEffect(() => {
@@ -216,7 +271,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string, replyToId?: string) => {
-    if (!activeContactId) return;
+    if (!activeContactId || !socketRef.current) return;
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -229,14 +284,19 @@ const App: React.FC = () => {
     };
 
     addMessage(activeContactId, newMessage);
+    
+    // Emit message via socket
+    socketRef.current.emit('send-message', {
+      roomId: activeContactId,
+      message: newMessage
+    });
 
-    // Simulate Network / AI Response
     const contact = contacts.find(c => c.id === activeContactId);
     if (!contact) return;
 
     const session = sessions[activeContactId];
 
-    // Simulate "Sent" -> "Delivered" -> "Read" update
+    // Simulate "Delivered" -> "Read" update
     setTimeout(() => {
       setSessions(prev => ({
         ...prev,
@@ -261,15 +321,17 @@ const App: React.FC = () => {
       }));
     }, 2000);
 
-    // Handle Reply
+    // Handle AI Reply
     if (contact.isAi) {
+      // Emit typing via socket
+      socketRef.current.emit('typing', { roomId: activeContactId, userId: contact.id, isTyping: true });
       setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'typing' } : c));
       
       try {
         let aiResponseText = "";
         
         if (session?.isGuided && session.currentStep !== undefined) {
-          const nextStepIdx = session.currentStep; // currentStep is 1-based
+          const nextStepIdx = session.currentStep; 
           if (nextStepIdx < GUIDED_EXERCISES.length) {
             const nextExercise = GUIDED_EXERCISES[nextStepIdx];
             aiResponseText = nextExercise.prompt;
@@ -292,33 +354,66 @@ const App: React.FC = () => {
             }));
           }
         } else {
-          // Normal AI response with topic context
-          const prompt = `Topic: ${session?.topic || 'General'}. User says: ${text}`;
+          // Get conversation context
+          const recentMessages = session?.messages.slice(-10) || [];
+          const context = recentMessages.map(m => `${m.senderId === INITIAL_USER_ID ? 'User' : 'AI'}: ${m.text}`).join('\n');
+          
+          const prompt = `
+            Context: You are Kindred Spirit, a friendly, empathetic AI companion.
+            Topic: ${session?.topic || 'General'}.
+            Recent Conversation:
+            ${context}
+            
+            User just said: "${text}"
+            
+            Instructions:
+            - Respond in a natural, human-like tone.
+            - Keep responses short and conversational (like a real chat message).
+            - Be empathetic and supportive.
+            - Use emojis occasionally.
+            - Avoid robotic or overly formal language.
+            - If the user asks "what are you doing?", you might say "Just chilling and thinking about our chat! How about you?"
+          `;
           aiResponseText = await sendMessageToGemini(prompt);
         }
         
-        setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'online' } : c));
+        // Simulate typing delay
+        const typingDelay = Math.min(Math.max(aiResponseText.length * 50, 1000), 4000);
+        setTimeout(() => {
+          socketRef.current?.emit('typing', { roomId: activeContactId, userId: contact.id, isTyping: false });
+          setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'online' } : c));
 
-        const replyMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          senderId: contact.id,
-          text: aiResponseText,
-          timestamp: new Date(),
-          status: 'read',
-          type: 'text'
-        };
-        addMessage(activeContactId, replyMessage);
+          const replyMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            senderId: contact.id,
+            text: aiResponseText,
+            timestamp: new Date(),
+            status: 'read',
+            type: 'text'
+          };
+          addMessage(activeContactId, replyMessage);
+          
+          // Emit AI message via socket (so other tabs/clients see it if applicable)
+          socketRef.current?.emit('send-message', {
+            roomId: activeContactId,
+            message: replyMessage
+          });
+        }, typingDelay);
+
       } catch (err) {
         console.error(err);
+        socketRef.current?.emit('typing', { roomId: activeContactId, userId: contact.id, isTyping: false });
         setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'online' } : c));
       }
 
     } else {
       // Simple mock reply for non-AI contacts
       setTimeout(() => {
+        socketRef.current?.emit('typing', { roomId: activeContactId, userId: contact.id, isTyping: true });
         setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'typing' } : c));
         
         setTimeout(() => {
+          socketRef.current?.emit('typing', { roomId: activeContactId, userId: contact.id, isTyping: false });
           setContacts(prev => prev.map(c => c.id === activeContactId ? { ...c, status: 'online' } : c));
           const replyMessage: Message = {
             id: (Date.now() + 1).toString(),
@@ -329,9 +424,23 @@ const App: React.FC = () => {
             type: 'text'
           };
           addMessage(activeContactId, replyMessage);
-        }, 3000); // 3s typing duration
-      }, 1000); // 1s delay before read
+          
+          socketRef.current?.emit('send-message', {
+            roomId: activeContactId,
+            message: replyMessage
+          });
+        }, 3000); 
+      }, 1000); 
     }
+  };
+
+  const handleTyping = (isTyping: boolean) => {
+    if (!activeContactId || !socketRef.current) return;
+    socketRef.current.emit('typing', {
+      roomId: activeContactId,
+      userId: INITIAL_USER_ID,
+      isTyping
+    });
   };
 
   const activeContact = contacts.find(c => c.id === activeContactId);
@@ -380,6 +489,7 @@ const App: React.FC = () => {
             contact={activeContact}
             messages={activeSession.messages}
             onSendMessage={handleSendMessage}
+            onTyping={handleTyping}
             onBack={handleBackToSidebar}
             isTyping={activeContact.status === 'typing'}
             activeTopic={activeSession.topic || 'General'}

@@ -8,6 +8,7 @@ interface ChatWindowProps {
   contact: Contact;
   messages: Message[];
   onSendMessage: (text: string, replyToId?: string) => void;
+  onTyping: (isTyping: boolean) => void;
   onBack: () => void;
   isTyping?: boolean;
   activeTopic: RelationshipTopic;
@@ -21,6 +22,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   contact, 
   messages, 
   onSendMessage, 
+  onTyping,
   onBack,
   isTyping,
   activeTopic,
@@ -359,6 +361,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="z-10 relative">
         <MessageInput 
           onSendMessage={onSendMessage} 
+          onTyping={onTyping}
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
         />
