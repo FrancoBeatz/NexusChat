@@ -3,16 +3,19 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "server/index.ts",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "start": "node server.ts"
+    "start": "node server/index.ts"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
     "express": "^5.2.1",
+    "firebase": "^12.10.0",
+    "firebase-admin": "^13.7.0",
     "lucide-react": "^0.555.0",
     "motion": "^12.35.1",
     "react": "^19.2.0",
