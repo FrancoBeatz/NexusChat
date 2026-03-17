@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ICONS } from '../constants';
+import { supabase, BUCKETS } from '../supabase';
 
 import { Contact, ChatSession, Message, AppView, UserProfile, RelationshipTopic } from '../types';
 
@@ -33,7 +34,39 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(`https://picsum.photos/seed/${Math.random()}/200/200`);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setError(null);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKETS.AVATARS)
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(BUCKETS.AVATARS)
+        .getPublicUrl(filePath);
+
+      setAvatar(publicUrl);
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error.message);
+      setError('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const nextStep = () => {
     setError(null);
@@ -98,13 +131,41 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
               <div className="flex flex-col items-start gap-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-stone-500">Profile Picture</label>
                 <div className="flex items-center gap-4 w-full">
-                  <img src={avatar} alt="Avatar" className="w-12 h-12 rounded-full object-cover border-2 border-kindred-accent" />
-                  <button 
-                    onClick={() => setAvatar(`https://picsum.photos/seed/${Math.random()}/200/200`)}
-                    className="text-xs text-kindred-accent font-bold hover:underline"
-                  >
-                    Shuffle Avatar
-                  </button>
+                  <div className="relative">
+                    <img 
+                      src={avatar} 
+                      alt="Avatar" 
+                      className={`w-12 h-12 rounded-full object-cover border-2 border-kindred-accent ${isUploading ? 'opacity-50' : ''}`} 
+                    />
+                    {isUploading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="text-xs text-kindred-accent font-bold hover:underline disabled:opacity-50"
+                    >
+                      Upload Photo
+                    </button>
+                    <button 
+                      onClick={() => setAvatar(`https://picsum.photos/seed/${Math.random()}/200/200`)}
+                      disabled={isUploading}
+                      className="text-[10px] text-stone-500 hover:underline disabled:opacity-50"
+                    >
+                      Shuffle Random
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileChange} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ICONS } from '../constants';
 import { Message } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase, BUCKETS } from '../supabase';
 
 interface MessageInputProps {
-  onSendMessage: (text: string, replyToId?: string) => void;
+  onSendMessage: (text: string, replyToId?: string, imageUrl?: string) => void;
   onTyping: (isTyping: boolean) => void;
   replyingTo: Message | null;
   onCancelReply: () => void;
@@ -14,11 +15,13 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, onTyping, re
   const [text, setText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showAudioConfirm, setShowAudioConfirm] = useState(false);
   const [lastTranscript, setLastTranscript] = useState('');
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -107,6 +110,36 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, onTyping, re
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `chat/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKETS.CHAT_MEDIA)
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(BUCKETS.CHAT_MEDIA)
+        .getPublicUrl(filePath);
+
+      onSendMessage('', replyingTo?.id, publicUrl);
+      onCancelReply();
+    } catch (error: any) {
+      console.error('Error uploading image:', error.message);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSend = () => {
@@ -254,9 +287,24 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, onTyping, re
             )}
           </AnimatePresence>
         </div>
-        <button className="p-2 text-stone-400 hover:text-kindred-accent transition-colors rounded-full hover:bg-kindred-700">
-          <ICONS.Paperclip className="w-6 h-6" />
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="p-2 text-stone-400 hover:text-kindred-accent transition-colors rounded-full hover:bg-kindred-700 disabled:opacity-50"
+        >
+          {isUploading ? (
+            <div className="w-6 h-6 border-2 border-kindred-accent border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <ICONS.Paperclip className="w-6 h-6" />
+          )}
         </button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          accept="image/*" 
+          className="hidden" 
+        />
         
         <div className="flex-1 bg-kindred-900 rounded-lg border border-kindred-700 focus-within:border-kindred-accent transition-colors">
           <textarea

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UserProfile } from '../types';
 import { ICONS } from '../constants';
 import { motion } from 'motion/react';
+import { supabase, BUCKETS } from '../supabase';
 
 interface ProfileEditProps {
   profile: UserProfile;
@@ -13,6 +14,41 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile, onSave, onBack }) =>
   const [name, setName] = useState(profile.name);
   const [bio, setBio] = useState(profile.bio);
   const [avatar, setAvatar] = useState(profile.avatar);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKETS.AVATARS)
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(BUCKETS.AVATARS)
+        .getPublicUrl(filePath);
+
+      setAvatar(publicUrl);
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error.message);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSave = () => {
     onSave({ name, bio, avatar });
@@ -41,16 +77,34 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile, onSave, onBack }) =>
             <img 
               src={avatar} 
               alt="Avatar" 
-              className="w-32 h-32 rounded-full object-cover border-4 border-kindred-800 shadow-xl"
+              className={`w-32 h-32 rounded-full object-cover border-4 border-kindred-800 shadow-xl ${isUploading ? 'opacity-50' : ''}`}
             />
             <button 
-              onClick={() => setAvatar(`https://picsum.photos/seed/${Math.random()}/200/200`)}
-              className="absolute bottom-0 right-0 p-2 bg-kindred-accent text-white rounded-full shadow-lg hover:bg-kindred-accentHover transition-colors"
+              onClick={handleAvatarClick}
+              disabled={isUploading}
+              className="absolute bottom-0 right-0 p-2 bg-kindred-accent text-white rounded-full shadow-lg hover:bg-kindred-accentHover transition-colors disabled:opacity-50"
             >
-              <ICONS.Camera className="w-5 h-5" />
+              {isUploading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <ICONS.Camera className="w-5 h-5" />
+              )}
             </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              accept="image/*" 
+              className="hidden" 
+            />
           </div>
-          <p className="mt-4 text-sm text-stone-400">Click the camera to change your photo</p>
+          <p className="mt-4 text-sm text-stone-400">Click the camera to upload a photo</p>
+          <button 
+            onClick={() => setAvatar(`https://picsum.photos/seed/${Math.random()}/200/200`)}
+            className="mt-2 text-xs text-kindred-accent hover:underline"
+          >
+            Or use a random one
+          </button>
         </div>
 
         {/* Form Section */}

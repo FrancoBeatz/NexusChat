@@ -15,3 +15,8 @@ export const supabase = createClient(
 );
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+
+export const BUCKETS = {
+  AVATARS: 'avatars',
+  CHAT_MEDIA: 'chat-media'
+};

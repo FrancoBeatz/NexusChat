@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ChatWindowProps {
   contact: Contact;
   messages: Message[];
-  onSendMessage: (text: string, replyToId?: string) => void;
+  onSendMessage: (text: string, replyToId?: string, imageUrl?: string) => void;
   onTyping: (isTyping: boolean) => void;
   onBack: () => void;
   isTyping?: boolean;
@@ -276,6 +276,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   <p id={`msg-${msg.id}`} className="text-sm md:text-[15px] leading-relaxed whitespace-pre-wrap break-words relative z-10">
                     {msg.text}
                   </p>
+                  
+                  {msg.imageUrl && (
+                    <div className="mt-2 rounded-lg overflow-hidden border border-white/10">
+                      <img 
+                        src={msg.imageUrl} 
+                        alt="Shared image" 
+                        className="max-w-full h-auto max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(msg.imageUrl, '_blank')}
+                      />
+                    </div>
+                  )}
                   
                   <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-rose-100' : 'text-stone-500'}`}>
                     <span className="text-[10px] font-mono opacity-80">

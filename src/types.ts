@@ -24,6 +24,7 @@ export interface Message {
   timestamp: Date;
   status: 'sent' | 'delivered' | 'read';
   type: 'text' | 'image' | 'audio' | 'system';
+  imageUrl?: string;
   replyToId?: string;
   reactions?: Record<string, string[]>; // emoji -> userIds[]
 }

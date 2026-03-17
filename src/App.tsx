@@ -316,8 +316,9 @@ const App: React.FC = () => {
         if (msgs) {
           const formattedMsgs = msgs.map(m => ({
             id: m.id,
-            senderId: m.sender_id,
+            senderId: m.sender_id || 'ai-spirit',
             text: m.text,
+            imageUrl: m.image_url,
             timestamp: new Date(m.timestamp),
             status: m.status,
             type: m.message_type,
@@ -345,8 +346,9 @@ const App: React.FC = () => {
             const m = payload.new as any;
             const newMessage: Message = {
               id: m.id,
-              senderId: m.sender_id,
+              senderId: m.sender_id || 'ai-spirit',
               text: m.text,
+              imageUrl: m.image_url,
               timestamp: new Date(m.timestamp),
               status: m.status,
               type: m.message_type,
@@ -558,7 +560,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSendMessage = async (text: string, replyToId?: string) => {
+  const handleSendMessage = async (text: string, replyToId?: string, imageUrl?: string) => {
     if (!activeContactId || !user) return;
 
     try {
@@ -606,7 +608,8 @@ const App: React.FC = () => {
         sender_id: user.id,
         text,
         status: 'sent',
-        message_type: 'text',
+        message_type: imageUrl ? 'image' : 'text',
+        image_url: imageUrl || null,
         reply_to_id: replyToId || null
       };
 
@@ -623,7 +626,7 @@ const App: React.FC = () => {
       await supabase
         .from('conversations')
         .update({
-          last_message: text,
+          last_message: text || 'Sent an image',
           last_message_at: new Date().toISOString()
         })
         .eq('id', convId);
@@ -636,9 +639,10 @@ const App: React.FC = () => {
             id: insertedMsg.id,
             senderId: user.id,
             text,
+            imageUrl,
             timestamp: new Date(insertedMsg.timestamp),
             status: 'sent',
-            type: 'text',
+            type: imageUrl ? 'image' : 'text',
             replyToId: replyToId || null
           }
         });
@@ -713,10 +717,10 @@ const App: React.FC = () => {
                 .from('messages')
                 .insert({
                   conversation_id: convId,
-                  sender_id: contact.id,
+                  sender_id: null, // AI messages have null sender
                   text: aiResponseText,
                   status: 'read',
-                  message_type: 'text'
+                  message_type: 'system'
                 });
             } catch (error) {
               console.error("Failed to send AI message:", error);
