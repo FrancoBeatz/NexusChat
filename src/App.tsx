@@ -19,6 +19,11 @@ const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.ONBOARDING);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -121,7 +126,36 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = async () => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setIsLoading(true);
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+        alert('Check your email for the confirmation link!');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      setAuthError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -724,23 +758,82 @@ const App: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="h-screen w-screen bg-kindred-900 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-24 h-24 bg-kindred-800 rounded-full flex items-center justify-center mb-8 shadow-2xl border border-kindred-700">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-12 h-12 text-kindred-accent">
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-          </svg>
+      <div className="h-screen w-screen bg-kindred-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-kindred-800 rounded-3xl p-8 shadow-2xl border border-white/5">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 bg-kindred-accent rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg shadow-kindred-accent/20">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-white">
+                <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" />
+                <path d="M12 7v5l3 3" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Kindred</h1>
+            <p className="text-stone-400">A safe space for your heart.</p>
+          </div>
+
+          <form onSubmit={handleEmailAuth} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-stone-300 mb-1">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full bg-kindred-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-kindred-accent transition-colors"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-300 mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full bg-kindred-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-kindred-accent transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {authError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
+                {authError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-kindred-accent text-white font-bold py-3 rounded-xl hover:bg-kindred-accentHover transition-all shadow-lg shadow-kindred-accent/20 disabled:opacity-50"
+            >
+              {isLoading ? 'Processing...' : isSignUp ? 'Create Account' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="mt-6 flex items-center gap-4">
+            <div className="h-px flex-1 bg-white/10"></div>
+            <span className="text-stone-500 text-sm">OR</span>
+            <div className="h-px flex-1 bg-white/10"></div>
+          </div>
+
+          <button
+            onClick={handleGoogleLogin}
+            className="w-full mt-6 bg-white text-kindred-900 font-bold py-3 rounded-xl hover:bg-stone-100 transition-all flex items-center justify-center gap-3"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+            Continue with Google
+          </button>
+
+          <p className="mt-8 text-center text-stone-400 text-sm">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-kindred-accent font-bold hover:underline"
+            >
+              {isSignUp ? 'Sign In' : 'Sign Up'}
+            </button>
+          </p>
         </div>
-        <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">Kindred</h1>
-        <p className="text-stone-400 max-w-sm mb-10 leading-relaxed">
-          A safe space for your heart. Connect with friends and your empathetic AI companion.
-        </p>
-        <button 
-          onClick={handleLogin}
-          className="bg-white text-kindred-900 font-bold px-8 py-4 rounded-xl flex items-center gap-3 hover:bg-stone-100 transition-all transform active:scale-95 shadow-xl"
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6" />
-          Sign in with Google
-        </button>
       </div>
     );
   }
