@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
 import ProfileEdit from './components/ProfileEdit';
 import Onboarding from './components/Onboarding';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, collection, doc, setDoc, getDoc, onSnapshot, query, orderBy, limit, addDoc, Timestamp, User } from './firebase';
+import { supabase } from './supabase';
 import { Contact, ChatSession, Message, AppView, UserProfile, RelationshipTopic } from './types';
 import { sendMessageToGemini } from './services/geminiService';
 import { INITIAL_USER_ID, GUIDED_EXERCISES } from './constants';
@@ -11,7 +11,7 @@ import { AnimatePresence } from 'motion/react';
 import { io, Socket } from 'socket.io-client';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Record<string, ChatSession>>({});
@@ -76,29 +76,60 @@ const App: React.FC = () => {
 
   // Auth Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // Fetch or create user profile in Firestore
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
-          setView(AppView.CHAT_LIST);
-        } else {
-          // New user, stay on onboarding
-          setView(AppView.ONBOARDING);
-        }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkUserProfile(session.user.id);
+      }
+      setIsAuthReady(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkUserProfile(session.user.id);
       } else {
         setView(AppView.ONBOARDING);
       }
       setIsAuthReady(true);
     });
-    return () => unsubscribe();
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const checkUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (data) {
+        setUserProfile({
+          name: data.name,
+          avatar: data.avatar_url,
+          bio: data.bio || ''
+        });
+        setView(AppView.CHAT_LIST);
+      } else {
+        setView(AppView.ONBOARDING);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setView(AppView.ONBOARDING);
+    }
+  };
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
     } catch (error) {
       console.error("Login failed:", error);
     }
@@ -107,13 +138,19 @@ const App: React.FC = () => {
   const handleOnboardingComplete = async (profile: UserProfile) => {
     if (!user) return;
     try {
-      await setDoc(doc(db, 'users', user.uid), {
-        ...profile,
-        id: user.uid,
-        uid: user.uid,
-        status: 'online',
-        lastSeen: new Date().toISOString()
-      });
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          name: profile.name,
+          avatar_url: profile.avatar,
+          bio: profile.bio,
+          status: 'online',
+          last_seen: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+
       setUserProfile(profile);
       setView(AppView.CHAT_LIST);
     } catch (error) {
@@ -125,46 +162,92 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Listen to users collection for contacts
-    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersList = snapshot.docs
-        .map(doc => doc.data() as Contact)
-        .filter(u => u.id !== user.uid); // Exclude self
+    // Fetch initial contacts
+    const fetchContacts = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('id', user.id);
       
-      // Add Kindred Spirit AI if not present
-      const aiContact: Contact = {
-        id: 'ai-spirit',
-        name: 'Kindred Spirit',
-        avatar: 'https://picsum.photos/seed/kindred/200/200',
-        status: 'online',
-        isAi: true,
-        bio: 'Your empathetic AI companion.'
-      };
-      
-      setContacts([aiContact, ...usersList]);
-    });
+      if (data) {
+        const usersList = data.map(p => ({
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar_url,
+          status: p.status,
+          bio: p.bio || '',
+          lastSeen: p.last_seen
+        } as Contact));
 
-    // Listen to conversations
-    const unsubscribeConvs = onSnapshot(collection(db, 'conversations'), (snapshot) => {
-      const convs: Record<string, ChatSession> = {};
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.participants.includes(user.uid)) {
-          const otherParticipant = data.participants.find((p: string) => p !== user.uid) || 'ai-spirit';
+        const aiContact: Contact = {
+          id: 'ai-spirit',
+          name: 'Kindred Spirit',
+          avatar: 'https://picsum.photos/seed/kindred/200/200',
+          status: 'online',
+          isAi: true,
+          bio: 'Your empathetic AI companion.'
+        };
+        
+        setContacts([aiContact, ...usersList]);
+      }
+    };
+
+    // Fetch initial conversations
+    const fetchConversations = async () => {
+      const { data, error } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, conversations(*)')
+        .eq('user_id', user.id);
+      
+      if (data) {
+        const convs: Record<string, ChatSession> = {};
+        for (const item of data) {
+          const conv = item.conversations as any;
+          if (!conv) continue;
+          
+          // Get other participant
+          const { data: participants } = await supabase
+            .from('conversation_participants')
+            .select('user_id')
+            .eq('conversation_id', conv.id)
+            .neq('user_id', user.id);
+          
+          const otherParticipant = participants?.[0]?.user_id || 'ai-spirit';
           convs[otherParticipant] = {
             contactId: otherParticipant,
-            messages: [], // Messages will be fetched separately
+            messages: [],
             unreadCount: 0,
-            topic: data.topic || 'General'
+            topic: conv.topic || 'General'
           };
         }
-      });
-      setSessions(prev => ({ ...prev, ...convs }));
-    });
+        setSessions(prev => ({ ...prev, ...convs }));
+      }
+    };
+
+    fetchContacts();
+    fetchConversations();
+
+    // Set up real-time subscriptions
+    const profilesSubscription = supabase
+      .channel('public:profiles')
+      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'profiles' }, (payload: any) => {
+        const updatedProfile = payload.new as any;
+        if (updatedProfile.id === user.id) return;
+
+        setContacts(prev => prev.map(c => 
+          c.id === updatedProfile.id ? {
+            ...c,
+            name: updatedProfile.name,
+            avatar: updatedProfile.avatar_url,
+            status: updatedProfile.status,
+            lastSeen: updatedProfile.last_seen
+          } : c
+        ));
+      })
+      .subscribe();
 
     return () => {
-      unsubscribeUsers();
-      unsubscribeConvs();
+      supabase.removeChannel(profilesSubscription);
     };
   }, [user]);
 
@@ -172,28 +255,80 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user || !activeContactId) return;
 
-    const convId = [user.uid, activeContactId].sort().join('_');
-    const q = query(collection(db, `conversations/${convId}/messages`), orderBy('timestamp', 'asc'));
+    const fetchMessages = async () => {
+      // Find conversation ID
+      const { data: participants } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+      
+      const convIds = participants?.map(p => p.conversation_id) || [];
+      
+      const { data: otherParticipants } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .in('conversation_id', convIds)
+        .eq('user_id', activeContactId)
+        .single();
 
-    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          timestamp: data.timestamp?.toDate() || new Date()
-        } as Message;
-      });
+      if (otherParticipants) {
+        const convId = otherParticipants.conversation_id;
+        const { data: msgs, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', convId)
+          .order('timestamp', { ascending: true });
 
-      setSessions(prev => ({
-        ...prev,
-        [activeContactId]: {
-          ...(prev[activeContactId] || { contactId: activeContactId, messages: [], unreadCount: 0, topic: 'General' }),
-          messages: msgs
+        if (msgs) {
+          const formattedMsgs = msgs.map(m => ({
+            id: m.id,
+            senderId: m.sender_id,
+            text: m.text,
+            timestamp: new Date(m.timestamp),
+            status: m.status,
+            type: m.message_type,
+            replyToId: m.reply_to_id
+          } as Message));
+
+          setSessions(prev => ({
+            ...prev,
+            [activeContactId]: {
+              ...(prev[activeContactId] || { contactId: activeContactId, messages: [], unreadCount: 0, topic: 'General' }),
+              messages: formattedMsgs
+            }
+          }));
         }
-      }));
-    });
 
-    return () => unsubscribeMessages();
+        // Real-time messages
+        const messagesSubscription = supabase
+          .channel(`public:messages:conv_${convId}`)
+          .on('postgres_changes' as any, { 
+            event: 'INSERT', 
+            schema: 'public',
+            table: 'messages', 
+            filter: `conversation_id=eq.${convId}` 
+          }, (payload: any) => {
+            const m = payload.new as any;
+            const newMessage: Message = {
+              id: m.id,
+              senderId: m.sender_id,
+              text: m.text,
+              timestamp: new Date(m.timestamp),
+              status: m.status,
+              type: m.message_type,
+              replyToId: m.reply_to_id
+            };
+            addMessage(activeContactId, newMessage);
+          })
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(messagesSubscription);
+        };
+      }
+    };
+
+    fetchMessages();
   }, [user, activeContactId]);
 
   const handleSelectContact = (id: string) => {
@@ -296,22 +431,41 @@ const App: React.FC = () => {
     setView(AppView.CHAT_LIST);
   };
 
-  const handleAddNewContact = (name: string, avatar?: string) => {
+  const handleAddNewContact = async (name: string, avatar?: string) => {
     const newId = `u-${Date.now()}`;
-    const newContact: Contact = {
-      id: newId,
-      name,
-      avatar: avatar || `https://picsum.photos/seed/${newId}/200/200`,
-      status: 'offline',
-      bio: 'New friend!'
-    };
-    setContacts(prev => [newContact, ...prev]);
-    setSessions(prev => ({
-      ...prev,
-      [newId]: { contactId: newId, messages: [], unreadCount: 0, topic: 'General' }
-    }));
-    setActiveContactId(newId);
-    if (isMobile) setView(AppView.CHAT_WINDOW);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: newId,
+          name,
+          avatar_url: avatar || `https://picsum.photos/seed/${newId}/200/200`,
+          status: 'offline',
+          bio: 'New friend!'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+
+      const newContact: Contact = {
+        id: data.id,
+        name: data.name,
+        avatar: data.avatar_url,
+        status: data.status,
+        bio: data.bio
+      };
+
+      setContacts(prev => [newContact, ...prev]);
+      setSessions(prev => ({
+        ...prev,
+        [data.id]: { contactId: data.id, messages: [], unreadCount: 0, topic: 'General' }
+      }));
+      setActiveContactId(data.id);
+      if (isMobile) setView(AppView.CHAT_WINDOW);
+    } catch (error) {
+      console.error("Failed to add contact:", error);
+    }
   };
 
   const addMessage = useCallback((contactId: string, message: Message) => {
@@ -373,35 +527,86 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, replyToId?: string) => {
     if (!activeContactId || !user) return;
 
-    const convId = [user.uid, activeContactId].sort().join('_');
-    const messagesRef = collection(db, `conversations/${convId}/messages`);
-
-    const newMessage = {
-      senderId: user.uid,
-      text,
-      timestamp: Timestamp.now(),
-      status: 'sent',
-      type: 'text',
-      replyToId: replyToId || null
-    };
-
     try {
-      // Ensure conversation exists
-      await setDoc(doc(db, 'conversations', convId), {
-        id: convId,
-        participants: [user.uid, activeContactId],
-        lastMessage: text,
-        lastMessageAt: Timestamp.now(),
-        topic: sessions[activeContactId]?.topic || 'General'
-      }, { merge: true });
-
-      await addDoc(messagesRef, newMessage);
+      // 1. Find or create conversation
+      let convId: string | null = null;
       
-      // Socket typing indicator (optional, since we use Firestore for messages)
+      const { data: myConvs } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+      
+      const myConvIds = myConvs?.map(c => c.conversation_id) || [];
+      
+      const { data: existingParticipant } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .in('conversation_id', myConvIds)
+        .eq('user_id', activeContactId)
+        .single();
+      
+      if (existingParticipant) {
+        convId = existingParticipant.conversation_id;
+      } else {
+        // Create new conversation
+        const { data: newConv, error: convError } = await supabase
+          .from('conversations')
+          .insert({ topic: sessions[activeContactId]?.topic || 'General' })
+          .select()
+          .single();
+        
+        if (convError) throw convError;
+        convId = newConv.id;
+
+        // Add participants
+        await supabase
+          .from('conversation_participants')
+          .insert([
+            { conversation_id: convId, user_id: user.id },
+            { conversation_id: convId, user_id: activeContactId }
+          ]);
+      }
+
+      const newMessage = {
+        conversation_id: convId,
+        sender_id: user.id,
+        text,
+        status: 'sent',
+        message_type: 'text',
+        reply_to_id: replyToId || null
+      };
+
+      // 2. Insert message
+      const { data: insertedMsg, error: msgError } = await supabase
+        .from('messages')
+        .insert(newMessage)
+        .select()
+        .single();
+      
+      if (msgError) throw msgError;
+
+      // Update conversation last message
+      await supabase
+        .from('conversations')
+        .update({
+          last_message: text,
+          last_message_at: new Date().toISOString()
+        })
+        .eq('id', convId);
+
+      // Socket typing indicator (optional)
       if (socketRef.current) {
         socketRef.current.emit('send-message', {
           roomId: activeContactId,
-          message: { ...newMessage, id: Date.now().toString(), timestamp: new Date() }
+          message: {
+            id: insertedMsg.id,
+            senderId: user.id,
+            text,
+            timestamp: new Date(insertedMsg.timestamp),
+            status: 'sent',
+            type: 'text',
+            replyToId: replyToId || null
+          }
         });
       }
 
@@ -444,7 +649,7 @@ const App: React.FC = () => {
             }
           } else {
             const recentMessages = session?.messages.slice(-10) || [];
-            const context = recentMessages.map(m => `${m.senderId === user.uid ? 'User' : 'AI'}: ${m.text}`).join('\n');
+            const context = recentMessages.map(m => `${m.senderId === user.id ? 'User' : 'AI'}: ${m.text}`).join('\n');
             
             const prompt = `
               Context: You are Kindred Spirit, a friendly, empathetic AI companion.
@@ -469,13 +674,19 @@ const App: React.FC = () => {
               socketRef.current.emit('typing', { roomId: activeContactId, userId: contact.id, isTyping: false });
             }
 
-            await addDoc(messagesRef, {
-              senderId: contact.id,
-              text: aiResponseText,
-              timestamp: Timestamp.now(),
-              status: 'read',
-              type: 'text'
-            });
+            try {
+              await supabase
+                .from('messages')
+                .insert({
+                  conversation_id: convId,
+                  sender_id: contact.id,
+                  text: aiResponseText,
+                  status: 'read',
+                  message_type: 'text'
+                });
+            } catch (error) {
+              console.error("Failed to send AI message:", error);
+            }
           }, typingDelay);
 
         } catch (err) {
@@ -492,9 +703,16 @@ const App: React.FC = () => {
 
   const handleTyping = (isTyping: boolean) => {
     if (!activeContactId || !socketRef.current || !user) return;
+    
+    // Update status in Supabase
+    supabase
+      .from('profiles')
+      .update({ status: isTyping ? 'typing' : 'online' })
+      .eq('id', user.id);
+
     socketRef.current.emit('typing', {
       roomId: activeContactId,
-      userId: user.uid,
+      userId: user.id,
       isTyping
     });
   };

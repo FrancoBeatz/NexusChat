@@ -33,17 +33,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(`https://picsum.photos/seed/${Math.random()}/200/200`);
+  const [error, setError] = useState<string | null>(null);
 
   const nextStep = () => {
+    setError(null);
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      if (!name) {
-        alert("Please enter your name");
+      if (!name.trim()) {
+        setError("Please enter your name to continue");
         return;
       }
       onComplete({
-        name,
+        name: name.trim(),
         avatar,
         bio: 'A safe space for my heart.'
       });
@@ -74,6 +76,15 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
 
           {currentStep === steps.length - 1 && (
             <div className="w-full mb-8 space-y-4">
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-500/20 border border-red-500/50 text-red-200 text-xs py-2 px-4 rounded-lg mb-4"
+                >
+                  {error}
+                </motion.div>
+              )}
               <div className="flex flex-col items-start gap-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-stone-500">Your Name</label>
                 <input 

@@ -44,10 +44,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ profile, onSave, onBack }) =>
               className="w-32 h-32 rounded-full object-cover border-4 border-kindred-800 shadow-xl"
             />
             <button 
-              onClick={() => {
-                const newAvatar = prompt('Enter new avatar URL:', avatar);
-                if (newAvatar) setAvatar(newAvatar);
-              }}
+              onClick={() => setAvatar(`https://picsum.photos/seed/${Math.random()}/200/200`)}
               className="absolute bottom-0 right-0 p-2 bg-kindred-accent text-white rounded-full shadow-lg hover:bg-kindred-accentHover transition-colors"
             >
               <ICONS.Camera className="w-5 h-5" />

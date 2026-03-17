@@ -69,7 +69,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, onTyping, re
 
   const startListening = () => {
     if (!recognitionRef.current) {
-      alert('Speech recognition is not supported in your browser.');
+      console.warn('Speech recognition is not supported in this browser.');
       return;
     }
     setLastTranscript('');

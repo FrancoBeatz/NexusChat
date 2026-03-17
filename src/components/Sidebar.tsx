@@ -25,6 +25,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTopicFilter, setActiveTopicFilter] = useState<RelationshipTopic | 'All'>('All');
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
 
   const topics: (RelationshipTopic | 'All')[] = ['All', 'Dating', 'Friendship', 'Family', 'Self-care', 'General'];
 
@@ -41,10 +43,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   });
 
   const handleNewChat = () => {
-    const name = prompt('Enter contact name:');
-    if (name) {
-      const avatar = prompt('Enter avatar URL (optional):');
-      onAddNewContact(name, avatar || undefined);
+    if (newContactName.trim()) {
+      onAddNewContact(newContactName.trim());
+      setNewContactName('');
+      setShowAddContact(false);
     }
   };
 
@@ -77,8 +79,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <div className="flex gap-3 text-kindred-accent">
            <button 
-             onClick={handleNewChat}
-             className="p-2 hover:bg-kindred-700 rounded-full transition-colors"
+             onClick={() => setShowAddContact(!showAddContact)}
+             className={`p-2 hover:bg-kindred-700 rounded-full transition-colors ${showAddContact ? 'bg-kindred-700' : ''}`}
              title="New Chat"
            >
              <ICONS.Plus className="w-5 h-5" />
@@ -88,6 +90,29 @@ const Sidebar: React.FC<SidebarProps> = ({
            </button>
         </div>
       </div>
+
+      {/* Add Contact Form */}
+      {showAddContact && (
+        <div className="p-3 bg-kindred-800 border-b border-kindred-700 animate-in slide-in-from-top duration-200">
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Friend's name..." 
+              className="flex-1 bg-kindred-900 text-sm text-stone-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-kindred-accent"
+              value={newContactName}
+              onChange={(e) => setNewContactName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleNewChat()}
+              autoFocus
+            />
+            <button 
+              onClick={handleNewChat}
+              className="bg-kindred-accent text-white px-3 py-2 rounded-lg text-xs font-bold"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search & Topic Filter */}
       <div className="p-3 space-y-3">
