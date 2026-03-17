@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -129,6 +130,7 @@ const App: React.FC = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
+    setAuthMessage(null);
     setIsLoading(true);
     try {
       if (isSignUp) {
@@ -140,7 +142,7 @@ const App: React.FC = () => {
           },
         });
         if (error) throw error;
-        alert('Check your email for the confirmation link!');
+        setAuthMessage('Success! Please check your email for the confirmation link.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -152,6 +154,17 @@ const App: React.FC = () => {
       setAuthError(error.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setUserProfile(null);
+      setView(AppView.ONBOARDING);
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
   };
 
@@ -800,11 +813,20 @@ const App: React.FC = () => {
                 <path d="M12 7v5l3 3" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Kindred</h1>
-            <p className="text-stone-400">A safe space for your heart.</p>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {isSignUp ? 'Join Kindred' : 'Welcome Back'}
+            </h1>
+            <p className="text-stone-400">
+              {isSignUp ? 'Start your journey to a safe space.' : 'A safe space for your heart.'}
+            </p>
           </div>
 
           <form onSubmit={handleEmailAuth} className="space-y-4">
+            {isSignUp && (
+              <div className="p-3 bg-kindred-accent/10 border border-kindred-accent/20 rounded-xl text-kindred-accent text-xs mb-4">
+                Tip: Use a real email to receive your confirmation link.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-stone-300 mb-1">Email Address</label>
               <input
@@ -831,6 +853,12 @@ const App: React.FC = () => {
             {authError && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
                 {authError}
+              </div>
+            )}
+
+            {authMessage && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-sm">
+                {authMessage}
               </div>
             )}
 
@@ -893,6 +921,7 @@ const App: React.FC = () => {
             userProfile={userProfile}
             onOpenProfile={() => setView(AppView.PROFILE)}
             onAddNewContact={handleAddNewContact}
+            onSignOut={handleSignOut}
           />
         )}
         <AnimatePresence>

@@ -10,6 +10,7 @@ interface SidebarProps {
   userProfile: UserProfile;
   onOpenProfile: () => void;
   onAddNewContact: (name: string, avatar?: string) => void;
+  onSignOut: () => void;
   className?: string;
 }
 
@@ -21,6 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   userProfile,
   onOpenProfile,
   onAddNewContact,
+  onSignOut,
   className = ''
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,6 +86,13 @@ const Sidebar: React.FC<SidebarProps> = ({
              title="New Chat"
            >
              <ICONS.Plus className="w-5 h-5" />
+           </button>
+           <button 
+             onClick={onSignOut}
+             className="p-2 hover:bg-kindred-700 rounded-full transition-colors text-stone-500 hover:text-red-400"
+             title="Sign Out"
+           >
+             <ICONS.LogOut className="w-5 h-5" />
            </button>
            <button className="p-2 hover:bg-kindred-700 rounded-full transition-colors">
              <ICONS.MoreVertical className="w-5 h-5" />
