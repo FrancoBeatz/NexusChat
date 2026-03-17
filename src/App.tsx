@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
 import ProfileEdit from './components/ProfileEdit';
 import Onboarding from './components/Onboarding';
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { Contact, ChatSession, Message, AppView, UserProfile, RelationshipTopic } from './types';
 import { sendMessageToGemini } from './services/geminiService';
 import { INITIAL_USER_ID, GUIDED_EXERCISES } from './constants';
@@ -753,6 +753,35 @@ const App: React.FC = () => {
 
   const activeContact = contacts.find(c => c.id === activeContactId);
   const activeSession = activeContactId ? sessions[activeContactId] : undefined;
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="h-screen w-screen bg-kindred-900 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-6 border border-amber-500/50">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-amber-500">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Configuration Required</h2>
+        <p className="text-stone-400 max-w-md mb-8 leading-relaxed">
+          Please provide your Supabase URL and Anon Key in the <b>Settings</b> menu to connect your database.
+        </p>
+        <div className="bg-kindred-800 p-4 rounded-xl border border-white/5 text-left w-full max-w-md">
+          <p className="text-xs font-mono text-stone-500 mb-2 uppercase tracking-wider">Required Variables:</p>
+          <ul className="space-y-2">
+            <li className="flex items-center gap-2 text-stone-300">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+              <code>VITE_SUPABASE_URL</code>
+            </li>
+            <li className="flex items-center gap-2 text-stone-300">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+              <code>VITE_SUPABASE_ANON_KEY</code>
+            </li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthReady) return null;
 

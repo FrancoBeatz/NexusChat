@@ -7,4 +7,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+// Export a dummy client if keys are missing to avoid immediate crash, 
+// though most operations will fail. The App component will handle the UI.
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder'
+);
+
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
